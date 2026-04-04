@@ -289,19 +289,19 @@ extern NSString *lcAppUrlScheme;
 - (NSArray*)getJITEnablerOptions {
 	NSString* tsPath = [NSString stringWithFormat:@"%@/../_TrollStore", [NSBundle mainBundle].bundlePath];
 	if (NSClassFromString(@"LCSharedUtils")) {
-		return @[ @"", @"", @"", @"", @"", @"", @"jit.jit-enabler.livecontainer".loc ];
+		return @[ @"", @"", @"", @"", @"", @"", @"jit.jit-enabler.livecontainer".loc, @"jit.jit-enabler.custom".loc ];
 	}
 	if (!access(tsPath.UTF8String, F_OK)) {
 		return @[
 			@"jit.jit-enabler.default".loc, @"jit.jit-enabler.trollstore".loc, @"jit.jit-enabler.stikjit".loc, @"jit.jit-enabler.jitstreamereb".loc, @"jit.jit-enabler.sidejit".loc,
-			@"jit.jit-enabler.sidestore".loc, @""
+			@"jit.jit-enabler.sidestore".loc, @"", @"jit.jit-enabler.custom".loc
 		];
 	} else if (@available(iOS 26.0, *)) {
-		return @[@"jit.jit-enabler.default".loc, @"", @"jit.jit-enabler.stikjit".loc, @"", @"", @"", @""];
+		return @[@"jit.jit-enabler.default".loc, @"", @"jit.jit-enabler.stikjit".loc, @"", @"", @"", @"", @"jit.jit-enabler.custom".loc];
 	} else {
 		return @[
 			@"jit.jit-enabler.default".loc, @"", @"jit.jit-enabler.stikjit".loc, @"jit.jit-enabler.jitstreamereb".loc, @"jit.jit-enabler.sidejit".loc,
-			@"jit.jit-enabler.sidestore".loc, @""
+			@"jit.jit-enabler.sidestore".loc, @"", @"jit.jit-enabler.custom".loc
 		];
 	}
 }
@@ -516,7 +516,7 @@ extern NSString *lcAppUrlScheme;
 			return ![Utils isSandboxed] || [[Utils getPrefs] integerForKey:@"ENTERPRISE_MODE"];
 		} visible:nil prefsKey:nil switchTag:0 action:^{
 			UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Aspect Ratio".loc message:nil preferredStyle:[UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad ? UIAlertControllerStyleAlert : UIAlertControllerStyleActionSheet];
-			NSArray* defaultAspectOptions = @[ @"Device Native".loc, @"16:9", @"16:10", @"4:3", @"1:1", @"Custom".loc ];
+			NSArray* defaultAspectOptions = @[ @"Device Native".loc, @"16:9", @"16:10", @"4:3", @"1:1", @"jit.jit-enabler.custom".loc ];
 			for (NSInteger i = 0; i < defaultAspectOptions.count; i++) {
 				[alert addAction:[UIAlertAction actionWithTitle:defaultAspectOptions[i] style:UIAlertActionStyleDefault handler:^(UIAlertAction* _Nonnull action) {
 					NSInteger aspectX = 0;
@@ -628,7 +628,7 @@ extern NSString *lcAppUrlScheme;
 		}],
 		[Setting create:@"jit.jit-server".loc type:SettingTypeCustom disabled:nil visible:^BOOL() {
 			NSInteger val = [[Utils getPrefs] integerForKey:@"JIT_ENABLER"];
-			return val == 4 || val == 3;
+			return val == 4 || val == 3 || val == 7;
 		} prefsKey:nil switchTag:0 action:nil custom:^(UITableViewCell *cell){
 			UITextField* textField = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 200, 30)];
 			textField.textAlignment = NSTextAlignmentRight;
