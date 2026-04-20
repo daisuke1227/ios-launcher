@@ -592,7 +592,7 @@ extern NSString *lcAppUrlScheme;
 			//return ![Utils isSandboxed] || ![Utils isDevCert];
 			return YES;
 		} visible:^BOOL() {
-			return NO;
+			return YES;
 		} prefsKey:@"USE_MAX_FPS" switchTag:20 action:nil custom:nil],
 	];
 	NSArray<Setting*>* jit = @[
