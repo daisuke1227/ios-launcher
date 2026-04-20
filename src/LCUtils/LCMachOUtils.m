@@ -104,6 +104,55 @@ BOOL isBinarySigned(struct mach_header_64* header) {
     return NO;
 }
 
+static uint8_t* ptrForVMAddr(struct mach_header_64* header, uint64_t vmaddr, size_t size) {
+	uint8_t* imageHeaderPtr = (uint8_t*)header + sizeof(struct mach_header_64);
+	struct load_command* command = (struct load_command*)imageHeaderPtr;
+	for (uint32_t i = 0; i < header->ncmds; i++) {
+		if (command->cmd == LC_SEGMENT_64) {
+			struct segment_command_64* seg = (struct segment_command_64*)command;
+			uint64_t segStart = seg->vmaddr;
+			uint64_t segEnd = seg->vmaddr + seg->filesize;
+			if (vmaddr >= segStart && vmaddr + size <= segEnd) {
+				uint64_t fileOffset = seg->fileoff + (vmaddr - segStart);
+				return ((uint8_t*)header) + fileOffset;
+			}
+		}
+		command = (struct load_command*)((uint8_t*)command + command->cmdsize);
+	}
+	return nil;
+}
+
+static BOOL patchGeometryDashFrameCap(struct mach_header_64* header) {
+	static const uint64_t kCmpAddr = 0x100213000;
+	static const uint64_t kMovAddr = 0x100213004;
+	static const uint8_t kCmp60[] = { 0x1f, 0xf0, 0x00, 0xf1 };
+	static const uint8_t kCmp120[] = { 0x1f, 0xe0, 0x01, 0xf1 };
+	static const uint8_t kMov60[] = { 0x88, 0x07, 0x80, 0x52 };
+	static const uint8_t kMov120[] = { 0x08, 0x0f, 0x80, 0x52 };
+
+	uint8_t* cmpPtr = ptrForVMAddr(header, kCmpAddr, sizeof(kCmp60));
+	uint8_t* movPtr = ptrForVMAddr(header, kMovAddr, sizeof(kMov60));
+	if (!cmpPtr || !movPtr) {
+		AppLog(@"Couldn't locate CCDirectorCaller::startMainLoop frame-cap instructions.");
+		return NO;
+	}
+
+	if (!memcmp(cmpPtr, kCmp120, sizeof(kCmp120)) && !memcmp(movPtr, kMov120, sizeof(kMov120))) {
+		AppLog(@"Geometry Dash frame cap is already patched to 120 Hz.");
+		return YES;
+	}
+
+	if (memcmp(cmpPtr, kCmp60, sizeof(kCmp60)) || memcmp(movPtr, kMov60, sizeof(kMov60))) {
+		AppLog(@"Unexpected bytes at CCDirectorCaller::startMainLoop frame-cap site, skipping high-FPS patch.");
+		return NO;
+	}
+
+	memcpy(cmpPtr, kCmp120, sizeof(kCmp120));
+	memcpy(movPtr, kMov120, sizeof(kMov120));
+	AppLog(@"Patched Geometry Dash CCDirectorCaller frame cap from 60 Hz to 120 Hz.");
+	return YES;
+}
+
 
 // TODO: look at https://github.com/LiveContainer/LiveContainer/blob/main/LiveContainer/LCMachOUtils.m and see if i can really manipulate with codesigs
 
@@ -130,7 +179,7 @@ BOOL isBinarySigned(struct mach_header_64* header) {
 // Error Codes
 // 0 = Success
 // -1 = Binary is signed, cant manipulate
-int LCPatchExecSlice(const char* path, struct mach_header_64* header, bool withGeode, bool withANGLE) {
+int LCPatchExecSlice(const char* path, struct mach_header_64* header, bool withGeode, bool enableHighFPS, bool useANGLE) {
 	uint8_t* imageHeaderPtr = (uint8_t*)header + sizeof(struct mach_header_64);
 	// if (isBinarySigned(header)) {
 	// 	AppLog(@"Binary is signed! If you crash then restore binary!");
@@ -240,7 +289,7 @@ int LCPatchExecSlice(const char* path, struct mach_header_64* header, bool withG
 			insertDylibCommand(LC_LOAD_DYLIB, tweakLoaderPath, header);
 		}
 	}
-	if (withANGLE) {
+	if (useANGLE) {
 		if (!hasANGLECommand) {
 			replaceDylibPath(header, openGlesLoadCmd, ANGLELoadCmd);
 		}
@@ -250,6 +299,9 @@ int LCPatchExecSlice(const char* path, struct mach_header_64* header, bool withG
 			replaceDylibPath(header, ANGLELoadCmd, openGlesLoadCmd);
 		}
 	}*/
+	if (enableHighFPS && !patchGeometryDashFrameCap(header)) {
+		AppLog(@"High-FPS binary patch was requested but couldn't be applied.");
+	}
 	return 0;
 }
 

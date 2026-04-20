@@ -649,8 +649,8 @@ for func in list:
 	NSString* geodePath = [Utils getTweakDir];
 	if (geodePath) {
 		NSString* error = LCParseMachO(geodePath.UTF8String, false, ^(const char* path, struct mach_header_64* header, int fd, void* filePtr) {
-			if (LCPatchLibWithANGLE(path, header, [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"])) {
-				if ([[Utils getPrefs] boolForKey:@"USE_MAX_FPS"]) {
+			if (LCPatchLibWithANGLE(path, header, [[Utils getPrefs] boolForKey:@"FORCE_ANGLE"])) {
+				if ([[Utils getPrefs] boolForKey:@"FORCE_ANGLE"]) {
 					AppLog(@"Patched Geode.ios.dylib to use ANGLEGLKit!");
 				} else {
 					AppLog(@"Patched Geode.ios.dylib to use OpenGLES!");
@@ -730,8 +730,8 @@ for func in list:
 	for (int i = 0; i < modDictSort.count; i++) {
 		NSString* modName = [[modDictSort objectAtIndex:i] lastPathComponent];
 		NSString* error = LCParseMachO([modDictSort objectAtIndex:i].UTF8String, false, ^(const char* path, struct mach_header_64* header, int fd, void* filePtr) {
-			if (LCPatchLibWithANGLE(path, header, [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"])) {
-				if ([[Utils getPrefs] boolForKey:@"USE_MAX_FPS"]) {
+			if (LCPatchLibWithANGLE(path, header, [[Utils getPrefs] boolForKey:@"FORCE_ANGLE"])) {
+				if ([[Utils getPrefs] boolForKey:@"FORCE_ANGLE"]) {
 					AppLog(@"Patched %@ to use ANGLEGLKit!", modName);
 				} else {
 					AppLog(@"Patched %@ to use OpenGLES!", modName);
@@ -762,7 +762,7 @@ for func in list:
 	if (entitlements) {
 		NSString* execPath = to.path;
 		NSString* error = LCParseMachO(execPath.UTF8String, false, ^(const char* path, struct mach_header_64* header, int fd, void* filePtr) {
-			LCPatchExecSlice(path, header, true, [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"]);
+			LCPatchExecSlice(path, header, true, [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"], [[Utils getPrefs] boolForKey:@"FORCE_ANGLE"]);
 		});
 		if (error) {
 			return completionHandler(NO, error);
@@ -1073,7 +1073,7 @@ for func in list:
 	if (entitlements) {
 		NSString* execPath = to.path;
 		NSString* error = LCParseMachO(execPath.UTF8String, false, ^(const char* path, struct mach_header_64* header, int fd, void* filePtr) {
-			LCPatchExecSlice(path, header, true, [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"]);
+			LCPatchExecSlice(path, header, true, [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"], [[Utils getPrefs] boolForKey:@"FORCE_ANGLE"]);
 		});
 		if (error) {
 			return completionHandler(NO, error);

@@ -1475,7 +1475,7 @@ extern NSString *lcAppUrlScheme;
 				[self.tableView reloadData];
 				return;
 			}
-			UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Warning" message:@"Enabling this option is experimental. It will request the highest refresh rate your device supports without modifying the Geometry Dash executable. If something goes wrong, disable it and relaunch.".loc preferredStyle:UIAlertControllerStyleAlert];
+			UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Warning" message:@"Enabling this option is experimental. It will patch Geometry Dash's built-in 60 Hz cap and request the highest refresh rate your device supports. If something goes wrong, disable it and relaunch.".loc preferredStyle:UIAlertControllerStyleAlert];
 			UIAlertAction* okAction = [UIAlertAction actionWithTitle:@"Enable" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* _Nonnull action) {
 				NSURL* bundlePath = [[LCPath bundlePath] URLByAppendingPathComponent:[Utils gdBundleName]];
 				NSFileManager* fm = [NSFileManager defaultManager];
