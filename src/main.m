@@ -19,6 +19,7 @@
 #import <UIKit/UIKit.h>
 #include <dlfcn.h>
 #include <execinfo.h>
+#include <math.h>
 #include <mach-o/ldsyms.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -276,6 +277,82 @@ static void* getAppEntryPoint(void* handle, uint32_t imageIndex) {
 uint32_t appMainImageIndex = 0;
 void* appExecutableHandle = 0;
 void* (*orig_dlsym)(void* __handle, const char* __symbol);
+static uint64_t (*origGuestDirectorSetAnimationInterval)(uint64_t self, double interval);
+static BOOL guestDirectorIntervalHookInstalled = NO;
+
+static NSInteger gc_get_guest_max_fps(void) {
+	UIScreen* screen = UIScreen.mainScreen;
+	if ([screen respondsToSelector:@selector(maximumFramesPerSecond)]) {
+		NSInteger maxFPS = screen.maximumFramesPerSecond;
+		if (maxFPS > 0) {
+			return MAX(maxFPS, 60);
+		}
+	}
+	return 60;
+}
+
+static uint64_t gc_guest_set_animation_interval_hook(uint64_t self, double interval) {
+	NSInteger maxFPS = gc_get_guest_max_fps();
+	if (maxFPS > 60) {
+		double forcedInterval = 1.0 / (double)maxFPS;
+		if (interval > forcedInterval) {
+			static double lastLoggedInterval = 0.0;
+			if (fabs(lastLoggedInterval - interval) > 0.000001) {
+				AppLog(@"[HighFPS] Overriding director animation interval from %.6f to %.6f (%ld Hz).", interval, forcedInterval, (long)maxFPS);
+				lastLoggedInterval = interval;
+			}
+			interval = forcedInterval;
+		}
+	}
+	return origGuestDirectorSetAnimationInterval(self, interval);
+}
+
+static BOOL gc_install_guest_high_fps_hook(void* appEntryPoint) {
+	if (!appEntryPoint) {
+		return NO;
+	}
+
+	static const uintptr_t kImageBase = 0x100000000ULL;
+	static const uintptr_t kDirectorIntervalSlot = 0x10079FE50ULL;
+	static const uintptr_t kExpectedTarget = 0x10017686CULL;
+
+	Dl_info info;
+	if (!dladdr(appEntryPoint, &info) || !info.dli_fbase) {
+		AppLog(@"[HighFPS] Failed to resolve guest image base for interval hook.");
+		return NO;
+	}
+
+	uintptr_t imageBase = (uintptr_t)info.dli_fbase;
+	uintptr_t* vtableSlot = (uintptr_t*)(imageBase + (kDirectorIntervalSlot - kImageBase));
+	uintptr_t expectedTarget = imageBase + (kExpectedTarget - kImageBase);
+	if (!vtableSlot) {
+		return NO;
+	}
+
+	if (*vtableSlot == (uintptr_t)&gc_guest_set_animation_interval_hook) {
+		guestDirectorIntervalHookInstalled = YES;
+		return YES;
+	}
+
+	if (*vtableSlot != expectedTarget) {
+		AppLog(@"[HighFPS] Unexpected director interval target: %#llx (expected %#llx).", (unsigned long long)*vtableSlot, (unsigned long long)expectedTarget);
+		return NO;
+	}
+
+	kern_return_t ret = builtin_vm_protect(mach_task_self(), (mach_vm_address_t)vtableSlot, sizeof(uintptr_t), false, PROT_READ | PROT_WRITE | VM_PROT_COPY);
+	if (ret != KERN_SUCCESS) {
+		AppLog(@"[HighFPS] vm_protect failed while installing director interval hook: %d", ret);
+		return NO;
+	}
+
+	origGuestDirectorSetAnimationInterval = (uint64_t (*)(uint64_t, double))*vtableSlot;
+	*vtableSlot = (uintptr_t)&gc_guest_set_animation_interval_hook;
+	builtin_vm_protect(mach_task_self(), (mach_vm_address_t)vtableSlot, sizeof(uintptr_t), false, PROT_READ);
+	guestDirectorIntervalHookInstalled = YES;
+	AppLog(@"[HighFPS] Installed guest director animation interval hook.");
+	return YES;
+}
+
 void* new_dlsym(void* __handle, const char* __symbol) {
 	if (__handle == (void*)RTLD_MAIN_ONLY) {
 		if (strcmp(__symbol, MH_EXECUTE_SYM) == 0) {
@@ -615,6 +692,9 @@ static NSString* invokeAppMain(NSString* selectedApp, NSString* selectedContaine
 		AppLog(@"[GeodeBootstrap] Error: %@", appError);
 		*path = oldPath;
 		return appError;
+	}
+	if ([gcUserDefaults boolForKey:@"USE_MAX_FPS"]) {
+		gc_install_guest_high_fps_hook((void*)appMain);
 	}
 
 	// Go!
