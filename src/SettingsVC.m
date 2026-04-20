@@ -1475,50 +1475,34 @@ extern NSString *lcAppUrlScheme;
 				[self.tableView reloadData];
 				return;
 			}
-			UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Warning" message:@"Enabling this option is experimental, as it changes the rendering engine Geometry Dash uses to support the maximum refresh rate. While you may not notice any changes if you don't have mods, some mods will not function properly with this setting enabled. Only enable this if you do not care about graphical differences.\n\nWould you like to enable anyways? You can always disable if something goes wrong.".loc preferredStyle:UIAlertControllerStyleAlert];
+			UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Warning" message:@"Enabling this option is experimental. It will request the highest refresh rate your device supports without modifying the Geometry Dash executable. If something goes wrong, disable it and relaunch.".loc preferredStyle:UIAlertControllerStyleAlert];
 			UIAlertAction* okAction = [UIAlertAction actionWithTitle:@"Enable" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* _Nonnull action) {
-				[Utils copyOrigBinary:^(BOOL isSuccess, NSString *errorStr) {
-					if (!isSuccess) {
-						[Utils showError:self title:[NSString stringWithFormat:@"Failed to copy Geometry Dash: %@", errorStr] error:nil];
-						[self.tableView reloadData];
-						return;
-					}
-					NSFileManager* fm = [NSFileManager defaultManager];
-					NSURL* bundlePath = [[LCPath bundlePath] URLByAppendingPathComponent:[Utils gdBundleName]];
-					NSString *frameworksPath = [bundlePath URLByAppendingPathComponent:@"Frameworks"].path;
-					BOOL isDir;
-					if (![fm fileExistsAtPath:[frameworksPath stringByAppendingPathComponent:@"ANGLEGLKit.framework"] isDirectory:&isDir]) {
-						if (![fm fileExistsAtPath:frameworksPath isDirectory:&isDir]) {
-							[fm createDirectoryAtPath:frameworksPath withIntermediateDirectories:YES attributes:nil error:nil];
+				NSURL* bundlePath = [[LCPath bundlePath] URLByAppendingPathComponent:[Utils gdBundleName]];
+				NSFileManager* fm = [NSFileManager defaultManager];
+				NSString* frameworksPath = [bundlePath URLByAppendingPathComponent:@"Frameworks"].path;
+				BOOL isDir = NO;
+
+				if ([fm fileExistsAtPath:frameworksPath isDirectory:&isDir] && isDir) {
+					[fm removeItemAtPath:[frameworksPath stringByAppendingPathComponent:@"ANGLEGLKit.framework"] error:nil];
+					[fm removeItemAtPath:[frameworksPath stringByAppendingPathComponent:@"libEGL.framework"] error:nil];
+					[fm removeItemAtPath:[frameworksPath stringByAppendingPathComponent:@"libGLESv2.framework"] error:nil];
+				}
+
+				if ([fm fileExistsAtPath:[bundlePath URLByAppendingPathComponent:@"GeometryOriginal"].path]) {
+					[Utils restoreOrigBinary:^(BOOL success, NSString* error) {
+						if (!success && error) {
+							[Utils showError:self title:error error:nil];
+							[self.tableView reloadData];
+							return;
 						}
-						AppLog(@"Now copying Frameworks dir...");
-						AppLog(@"Dir is %@", [NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"Frameworks/ANGLEGLKit.framework"]);
-						[fm copyItemAtPath:[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"Frameworks/ANGLEGLKit.framework"] toPath:[frameworksPath stringByAppendingPathComponent:@"ANGLEGLKit.framework"] error:nil];
-						[fm copyItemAtPath:[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"Frameworks/libEGL.framework"] toPath:[frameworksPath stringByAppendingPathComponent:@"libEGL.framework"] error:nil];
-						[fm copyItemAtPath:[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"Frameworks/libGLESv2.framework"] toPath:[frameworksPath stringByAppendingPathComponent:@"libGLESv2.framework"] error:nil];
-						if ([[Utils getPrefs] boolForKey:@"ENTERPRISE_MODE"]) {
-							NSString* tweakLoaderPath = [bundlePath URLByAppendingPathComponent:@"CAHighFPS.dylib"].path;
-							if (![fm fileExistsAtPath:tweakLoaderPath]) {
-								NSString* target = [NSBundle.mainBundle.privateFrameworksPath stringByAppendingPathComponent:@"CAHighFPS.dylib"];
-								[fm copyItemAtPath:target toPath:tweakLoaderPath error:nil];
-							}
-						}
-					} else {
-						AppLog(@"Frameworks dir already exists, skipping...");
-					}
-					AppLog(@"Patching GD with new load commands...");
-					NSString* execPath = [bundlePath URLByAppendingPathComponent:@"GeometryJump"].path;
-					NSString* error = LCParseMachO(execPath.UTF8String, false, ^(const char* path, struct mach_header_64* header, int fd, void* filePtr) {
-						LCPatchExecSlice(path, header, [[Utils getPrefs] boolForKey:@"ENTERPRISE_MODE"], YES);
-					});
-					if (error) {
-						[Utils showError:self title:[NSString stringWithFormat:@"Failed to patch Geometry Dash: %@", error] error:nil];
+
+						[Utils toggleKey:@"USE_MAX_FPS"];
 						[self.tableView reloadData];
-						return;
-					}
+					}];
+				} else {
 					[Utils toggleKey:@"USE_MAX_FPS"];
 					[self.tableView reloadData];
-				}];
+				}
 			}];
 			UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil];
 			[alert addAction:okAction];
