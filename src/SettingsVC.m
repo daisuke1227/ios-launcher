@@ -1489,7 +1489,23 @@ extern NSString *lcAppUrlScheme;
 				}
 
 				if ([fm fileExistsAtPath:[bundlePath URLByAppendingPathComponent:@"GeometryOriginal"].path]) {
-					[Utils restoreOrigBinary:^(BOOL success, NSString* error) {
+					NSError* err;
+					[fm removeItemAtURL:[bundlePath URLByAppendingPathComponent:@"GeometryJump"] error:&err];
+					if (err) {
+						[Utils showError:self title:@"Couldn't remove patched Geometry Dash binary." error:err];
+						[self.tableView reloadData];
+						return;
+					}
+
+					[fm copyItemAtURL:[bundlePath URLByAppendingPathComponent:@"GeometryOriginal"] toURL:[bundlePath URLByAppendingPathComponent:@"GeometryJump"] error:&err];
+					if (err) {
+						[Utils showError:self title:@"Couldn't restore original Geometry Dash binary." error:err];
+						[self.tableView reloadData];
+						return;
+					}
+
+					[[Utils getPrefs] setObject:@"NO" forKey:@"PATCH_CHECKSUM"];
+					[Patcher patchGeode:^(BOOL success, NSString* error) {
 						if (!success && error) {
 							[Utils showError:self title:error error:nil];
 							[self.tableView reloadData];
