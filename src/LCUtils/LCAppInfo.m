@@ -141,6 +141,14 @@
 	}
 	NSFileManager* fm = [NSFileManager defaultManager];
 	NSString* execPath = [NSString stringWithFormat:@"%@/%@", appPath, _infoPlist[@"CFBundleExecutable"]];
+	BOOL isGeometryDashBundle = [[appPath lastPathComponent] isEqualToString:@"com.robtop.geometryjump.app"];
+	BOOL shouldSkipSignatureCheck =
+		isGeometryDashBundle &&
+		([[Utils getPrefs] boolForKey:@"JITLESS"] || [[Utils getPrefs] boolForKey:@"FORCE_PATCHING"] || [[Utils getPrefs] integerForKey:@"FORCE_CERT_JIT"] ||
+		 [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"]);
+	if (shouldSkipSignatureCheck) {
+		forceSign = YES;
+	}
 
 	// Update patch
 	int currentPatchRev = 1;
@@ -190,7 +198,7 @@
 	}
 
 	NSString* executablePath = [appPath stringByAppendingPathComponent:infoPlist[@"CFBundleExecutable"]];
-	if (!forceSign) {
+	if (!forceSign && !shouldSkipSignatureCheck) {
 		bool signatureValid = checkCodeSignature(executablePath.UTF8String);
 		if (signatureValid) {
 			// not expired, don't sign again
@@ -233,6 +241,8 @@
 				[infoPlist writeToFile:infoPath atomically:YES];
 				if (!success) {
 					completetionHandler(NO, error.localizedDescription);
+				} else if (shouldSkipSignatureCheck) {
+					completetionHandler(YES, nil);
 				} else {
 					bool signatureValid = checkCodeSignature(executablePath.UTF8String);
 					if (signatureValid) {
@@ -252,6 +262,8 @@
 				[infoPlist writeToFile:infoPath atomically:YES];
 				if (!success) {
 					completetionHandler(NO, error.localizedDescription);
+				} else if (shouldSkipSignatureCheck) {
+					completetionHandler(YES, nil);
 				} else {
 					bool signatureValid = checkCodeSignature(executablePath.UTF8String);
 					if (signatureValid) {

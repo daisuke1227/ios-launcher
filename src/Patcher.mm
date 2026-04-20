@@ -1048,7 +1048,6 @@ for func in list:
 	if (patchChecksum != nil) {
 		if (![patchChecksum isEqualToString:hash]) {
 			AppLog(@"Hash mismatch (%@ vs %@), now writing to binary...", patchChecksum, hash)
-			[[Utils getPrefs] setObject:hash forKey:@"PATCH_CHECKSUM"];
 		} else {
 			if (!force) {
 				AppLog(@"Binary already patched, skipping...");
@@ -1057,7 +1056,6 @@ for func in list:
 		}
 	} else {
 		AppLog(@"Got hash %@, now writing to binary...", hash)
-		[[Utils getPrefs] setObject:hash forKey:@"PATCH_CHECKSUM"];
 	}
 	struct mach_header_64* headerNew = (struct mach_header_64*)(uint8_t*)data.mutableBytes;
 	if (data.length < sizeof(struct mach_header_64) || (headerNew->magic != MH_MAGIC && headerNew->magic != MH_MAGIC_64)) {
@@ -1083,6 +1081,7 @@ for func in list:
 			return completionHandler(NO, error);
 		}
 	}
+	[[Utils getPrefs] setObject:hash forKey:@"PATCH_CHECKSUM"];
 	AppLog(@"Binary has been patched! Now going to patch all mods with rendering engine...");
 	return completionHandler(YES, @"force");
 	[Patcher patchGeode:^(BOOL success2, NSString *error2) {
