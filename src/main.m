@@ -425,6 +425,12 @@ static NSString* invokeAppMain(NSString* selectedApp, NSString* selectedContaine
 		return @"App not found";
 	}
 
+	if ([gcUserDefaults boolForKey:@"USE_MAX_FPS"]) {
+		id promoKey = appBundle.infoDictionary[@"CADisableMinimumFrameDurationOnPhone"];
+		AppLog(@"[HighFPS] Guest bundle CADisableMinimumFrameDurationOnPhone=%@", promoKey ? ([promoKey boolValue] ? @"YES" : @"NO") : @"<missing>");
+		AppLog(@"[HighFPS] Guest screen maximumFramesPerSecond=%ld", (long)gc_get_guest_max_fps());
+	}
+
 	// find container in Info.plist
 	NSString* dataUUID = selectedContainer;
 	if (dataUUID == nil) {

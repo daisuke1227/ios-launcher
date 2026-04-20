@@ -735,6 +735,22 @@
 		}];
 	}
 	NSURL* bundlePath = [[LCPath bundlePath] URLByAppendingPathComponent:[Utils gdBundleName]];
+	if ([[Utils getPrefs] boolForKey:@"USE_MAX_FPS"]) {
+		NSString* infoPath = [bundlePath URLByAppendingPathComponent:@"Info.plist"].path;
+		NSMutableDictionary* infoDict = [NSMutableDictionary dictionaryWithContentsOfFile:infoPath];
+		if (!infoDict) {
+			return completionHandler(NO, @"Couldn't read Geometry Dash Info.plist.");
+		}
+
+		if (![infoDict[@"CADisableMinimumFrameDurationOnPhone"] boolValue]) {
+			infoDict[@"CADisableMinimumFrameDurationOnPhone"] = @YES;
+			if (![infoDict writeToFile:infoPath atomically:YES]) {
+				return completionHandler(NO, @"Couldn't update Geometry Dash Info.plist for 120 Hz mode.");
+			}
+			forceSign = YES;
+			AppLog(@"Enabled CADisableMinimumFrameDurationOnPhone for the regular launch path.");
+		}
+	}
 	if ([[Utils getPrefs] boolForKey:@"JITLESS"]) {
 		[Patcher patchGDBinary:[bundlePath URLByAppendingPathComponent:@"GeometryOriginal"] to:[bundlePath URLByAppendingPathComponent:@"GeometryJump"] withHandlerAddress:0x8c4000
 						 force:NO
