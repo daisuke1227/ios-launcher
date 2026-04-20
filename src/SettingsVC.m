@@ -1477,101 +1477,19 @@ extern NSString *lcAppUrlScheme;
 			}
 			UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Warning" message:@"Enabling this option is experimental. It will patch Geometry Dash's built-in 60 Hz cap and request the highest refresh rate your device supports. If something goes wrong, disable it and relaunch.".loc preferredStyle:UIAlertControllerStyleAlert];
 			UIAlertAction* okAction = [UIAlertAction actionWithTitle:@"Enable" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* _Nonnull action) {
-				NSURL* bundlePath = [[LCPath bundlePath] URLByAppendingPathComponent:[Utils gdBundleName]];
-				NSFileManager* fm = [NSFileManager defaultManager];
-				NSString* frameworksPath = [bundlePath URLByAppendingPathComponent:@"Frameworks"].path;
-				BOOL isDir = NO;
-
-				if ([fm fileExistsAtPath:frameworksPath isDirectory:&isDir] && isDir) {
-					[fm removeItemAtPath:[frameworksPath stringByAppendingPathComponent:@"ANGLEGLKit.framework"] error:nil];
-					[fm removeItemAtPath:[frameworksPath stringByAppendingPathComponent:@"libEGL.framework"] error:nil];
-					[fm removeItemAtPath:[frameworksPath stringByAppendingPathComponent:@"libGLESv2.framework"] error:nil];
-				}
-
-				if ([fm fileExistsAtPath:[bundlePath URLByAppendingPathComponent:@"GeometryOriginal"].path]) {
-					NSError* err;
-					[fm removeItemAtURL:[bundlePath URLByAppendingPathComponent:@"GeometryJump"] error:&err];
-					if (err) {
-						[Utils showError:self title:@"Couldn't remove patched Geometry Dash binary." error:err];
-						[self.tableView reloadData];
-						return;
-					}
-
-					[fm copyItemAtURL:[bundlePath URLByAppendingPathComponent:@"GeometryOriginal"] toURL:[bundlePath URLByAppendingPathComponent:@"GeometryJump"] error:&err];
-					if (err) {
-						[Utils showError:self title:@"Couldn't restore original Geometry Dash binary." error:err];
-						[self.tableView reloadData];
-						return;
-					}
-
-					[[Utils getPrefs] setBool:YES forKey:@"USE_MAX_FPS"];
-					[[Utils getPrefs] setObject:@"NO" forKey:@"PATCH_CHECKSUM"];
-					[Patcher patchGDBinary:[bundlePath URLByAppendingPathComponent:@"GeometryOriginal"]
-										to:[bundlePath URLByAppendingPathComponent:@"GeometryJump"]
-						withHandlerAddress:0x8c4000
-									 force:NO
-							  withSafeMode:NO
-						  withEntitlements:NO completionHandler:^(BOOL success, NSString* error) {
-						if (!success) {
-							[[Utils getPrefs] setBool:NO forKey:@"USE_MAX_FPS"];
-							[Utils showError:self title:error error:nil];
-							[self.tableView reloadData];
-							return;
-						}
-
-						[self.tableView reloadData];
-					}];
-				} else {
-					[[Utils getPrefs] setBool:YES forKey:@"USE_MAX_FPS"];
-					[self.tableView reloadData];
-				}
+				[[Utils getPrefs] setBool:YES forKey:@"USE_MAX_FPS"];
+				[[Utils getPrefs] setObject:@"NO" forKey:@"PATCH_CHECKSUM"];
+				[Utils showNotice:self title:@"120 Hz will be applied the next time Geometry Dash is launched."];
+				[self.tableView reloadData];
 			}];
 			UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil];
 			[alert addAction:okAction];
 			[alert addAction:cancelAction];
 			[self presentViewController:alert animated:YES completion:nil];
 		} else {
-			[Utils toggleKey:@"USE_MAX_FPS"];
-			NSFileManager* fm = [NSFileManager defaultManager];
-			NSURL* bundlePath = [[LCPath bundlePath] URLByAppendingPathComponent:[Utils gdBundleName]];
-
-			NSString *frameworksPath = [bundlePath URLByAppendingPathComponent:@"Frameworks"].path;
-			BOOL isDir;
-			if ([fm fileExistsAtPath:frameworksPath isDirectory:&isDir]) {
-				if (isDir) {
-					if ([fm fileExistsAtPath:[frameworksPath stringByAppendingPathComponent:@"ANGLEGLKit.framework"] isDirectory:&isDir]) {
-						if (isDir) {
-							AppLog(@"Now deleting files...");
-							[fm removeItemAtPath:[frameworksPath stringByAppendingPathComponent:@"ANGLEGLKit.framework"] error:nil];
-							[fm removeItemAtPath:[frameworksPath stringByAppendingPathComponent:@"libEGL.framework"] error:nil];
-							[fm removeItemAtPath:[frameworksPath stringByAppendingPathComponent:@"libGLESv2.framework"] error:nil];
-						}
-					}
-				}
-			} else {
-				AppLog(@"Frameworks dir doesn't exist, skipping...");
-			}
-
-			if (![fm fileExistsAtPath:[bundlePath URLByAppendingPathComponent:@"GeometryOriginal"].path]) {
-				AppLog(@"Not restoring binary.");
-			} else {
-				NSError* err;
-				[fm removeItemAtURL:[bundlePath URLByAppendingPathComponent:@"GeometryJump"] error:&err];
-				if (err) {
-					AppLog(@"Couldn't remove patched binary: %@", err);
-				} else {
-					[fm copyItemAtURL:[bundlePath URLByAppendingPathComponent:@"GeometryOriginal"] toURL:[bundlePath URLByAppendingPathComponent:@"GeometryJump"] error:&err];
-					if (err) {
-						AppLog(@"Couldn't copy binary: %@", err);
-					} else {
-						[[Utils getPrefs] setObject:@"NO" forKey:@"PATCH_CHECKSUM"];
-						AppLog(@"Restored original binary.");
-					}
-				}
-			}
-			[Patcher patchGeode:^(BOOL success, NSString *error) {
-				AppLog(@"Patched Geode (Success: %@, Error: %@)", (success) ? @"YES" : @"NO", error);
-			}];
+			[[Utils getPrefs] setBool:NO forKey:@"USE_MAX_FPS"];
+			[[Utils getPrefs] setObject:@"NO" forKey:@"PATCH_CHECKSUM"];
+			[Utils showNotice:self title:@"120 Hz will be disabled the next time Geometry Dash is launched."];
 		}
 		[self.tableView reloadData];
 		break;
