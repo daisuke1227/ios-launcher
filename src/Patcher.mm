@@ -1035,14 +1035,15 @@ for func in list:
 	}
 	NSString* patchChecksum = [[Utils getPrefs] stringForKey:@"PATCH_CHECKSUM"];
 	NSArray* keys = [self.originalBytes allKeys];
+	NSString* fpsState = [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"] ? @"fps1" : @"fps0";
     NSString* hash;
     if (entitlements) {
 		NSString* modHashSorted = [[[modIDsHash allObjects] sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)] componentsJoinedByString:@","];
-		NSString* toHash = [NSString stringWithFormat:@"%@-%@+%@",PATCH_VER,[modIDSorted componentsJoinedByString:@","], modHashSorted];
+		NSString* toHash = [NSString stringWithFormat:@"%@-%@+%@+%@",PATCH_VER,[modIDSorted componentsJoinedByString:@","], modHashSorted, fpsState];
         hash = [Utils sha256sumWithString:toHash];
 		AppLog(@"sha256sum(\"%@\")", toHash);
     } else {
-        hash = [Utils sha256sumWithString:[NSString stringWithFormat:@"%@-%@",PATCH_VER,[keys componentsJoinedByString:@","]]];
+        hash = [Utils sha256sumWithString:[NSString stringWithFormat:@"%@-%@-%@",PATCH_VER,[keys componentsJoinedByString:@","], fpsState]];
     }
 	if (patchChecksum != nil) {
 		if (![patchChecksum isEqualToString:hash]) {
@@ -1063,6 +1064,9 @@ for func in list:
 		// okay how would this realistically happen
 		AppLog(@"Couldn't patch! Binary wasn't properly patched as a 64-bit Mach-O.");
 		return completionHandler(NO, @"Patched binary wasn't properly patched as a proper Mach-O binary");
+	}
+	if ([[Utils getPrefs] boolForKey:@"USE_MAX_FPS"] && !LCPatchGeometryDashHighFPS(headerNew)) {
+		return completionHandler(NO, @"Couldn't patch Geometry Dash's built-in 120 Hz frame cap.");
 	}
 	[data writeToURL:to options:NSDataWritingAtomic error:&error];
 	if (error) {
@@ -1237,7 +1241,8 @@ for func in list:
 	//NSArray* keys = [bytes allKeys];
 	//AppLog(@"keys %@", [NSString stringWithFormat:@"%@+%@",[modIDSorted componentsJoinedByString:@","], [keys componentsJoinedByString:@","]]);
 	NSString* modHashSorted = [[[modIDsHash allObjects] sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)] componentsJoinedByString:@","];
-	NSString* hash = [Utils sha256sumWithString:[NSString stringWithFormat:@"%@-%@+%@",PATCH_VER,[modIDSorted componentsJoinedByString:@","], modHashSorted]];
+	NSString* fpsState = [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"] ? @"fps1" : @"fps0";
+	NSString* hash = [Utils sha256sumWithString:[NSString stringWithFormat:@"%@-%@+%@+%@",PATCH_VER,[modIDSorted componentsJoinedByString:@","], modHashSorted, fpsState]];
 	return hash;
 }
 @end

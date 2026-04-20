@@ -1504,19 +1504,25 @@ extern NSString *lcAppUrlScheme;
 						return;
 					}
 
+					[[Utils getPrefs] setBool:YES forKey:@"USE_MAX_FPS"];
 					[[Utils getPrefs] setObject:@"NO" forKey:@"PATCH_CHECKSUM"];
-					[Patcher patchGeode:^(BOOL success, NSString* error) {
-						if (!success && error) {
+					[Patcher patchGDBinary:[bundlePath URLByAppendingPathComponent:@"GeometryOriginal"]
+										to:[bundlePath URLByAppendingPathComponent:@"GeometryJump"]
+						withHandlerAddress:0x8c4000
+									 force:NO
+							  withSafeMode:NO
+						  withEntitlements:NO completionHandler:^(BOOL success, NSString* error) {
+						if (!success) {
+							[[Utils getPrefs] setBool:NO forKey:@"USE_MAX_FPS"];
 							[Utils showError:self title:error error:nil];
 							[self.tableView reloadData];
 							return;
 						}
 
-						[Utils toggleKey:@"USE_MAX_FPS"];
 						[self.tableView reloadData];
 					}];
 				} else {
-					[Utils toggleKey:@"USE_MAX_FPS"];
+					[[Utils getPrefs] setBool:YES forKey:@"USE_MAX_FPS"];
 					[self.tableView reloadData];
 				}
 			}];

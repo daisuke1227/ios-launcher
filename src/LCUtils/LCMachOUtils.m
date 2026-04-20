@@ -122,7 +122,7 @@ static uint8_t* ptrForVMAddr(struct mach_header_64* header, uint64_t vmaddr, siz
 	return nil;
 }
 
-static BOOL patchGeometryDashFrameCap(struct mach_header_64* header) {
+BOOL LCPatchGeometryDashHighFPS(struct mach_header_64* header) {
 	static const uint64_t kCmpAddr = 0x100213000;
 	static const uint64_t kMovAddr = 0x100213004;
 	static const uint8_t kCmp60[] = { 0x1f, 0xf0, 0x00, 0xf1 };
@@ -299,7 +299,7 @@ int LCPatchExecSlice(const char* path, struct mach_header_64* header, bool withG
 			replaceDylibPath(header, ANGLELoadCmd, openGlesLoadCmd);
 		}
 	}*/
-	if (enableHighFPS && !patchGeometryDashFrameCap(header)) {
+	if (enableHighFPS && !LCPatchGeometryDashHighFPS(header)) {
 		AppLog(@"High-FPS binary patch was requested but couldn't be applied.");
 	}
 	return 0;
