@@ -904,10 +904,11 @@
 	while ([encodedUrl hasSuffix:@"="]) {
 		[encodedUrl deleteCharactersInRange:NSMakeRange(encodedUrl.length - 1, 1)];
 	}
-	NSString* openURL = [NSString stringWithFormat:@"geode-helper://launch?args=%@%@", encodedUrl, [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"] ? @"&cahighfps=1" : @""];
+	NSString* highFPSQuery = [NSString stringWithFormat:@"&cahighfps=%d", [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"] ? 1 : 0];
+	NSString* openURL = [NSString stringWithFormat:@"geode-helper://launch?args=%@%@", encodedUrl, highFPSQuery];
 	if (patchCheck) {
 		NSString* checksum = [EnterpriseCompare getChecksum:NO];
-		openURL = [NSString stringWithFormat:@"geode-helper://launch?checksum=%@&args=%@%@", checksum, encodedUrl, [[Utils getPrefs] boolForKey:@"USE_MAX_FPS"] ? @"&cahighfps=1" : @""];
+		openURL = [NSString stringWithFormat:@"geode-helper://launch?checksum=%@&args=%@%@", checksum, encodedUrl, highFPSQuery];
 	}
 	NSURL* url = [NSURL URLWithString:openURL];
 	if ([[UIApplication sharedApplication] canOpenURL:url]) {

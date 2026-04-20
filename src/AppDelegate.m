@@ -13,6 +13,35 @@ static ImportCertHandler importCertFunc = nil;
 static NSData* certData = nil;
 static NSString* certPassword = nil;
 
+static NSString* gc_decodeURLSafeBase64String(NSString* value) {
+	if (!value.length) {
+		return nil;
+	}
+
+	NSMutableString* base64 = [[value stringByRemovingPercentEncoding] mutableCopy];
+	[base64 replaceOccurrencesOfString:@"-" withString:@"+" options:0 range:NSMakeRange(0, base64.length)];
+	[base64 replaceOccurrencesOfString:@"_" withString:@"/" options:0 range:NSMakeRange(0, base64.length)];
+	while (base64.length % 4 != 0) {
+		[base64 appendString:@"="];
+	}
+
+	NSData* decodedData = [[NSData alloc] initWithBase64EncodedString:base64 options:0];
+	if (!decodedData) {
+		return nil;
+	}
+
+	return [[NSString alloc] initWithData:decodedData encoding:NSUTF8StringEncoding];
+}
+
+static BOOL gc_queryItemIsTruthy(NSString* value) {
+	if (!value.length) {
+		return NO;
+	}
+
+	NSString* lowered = value.lowercaseString;
+	return [lowered isEqualToString:@"1"] || [lowered isEqualToString:@"true"] || [lowered isEqualToString:@"yes"] || [lowered isEqualToString:@"on"];
+}
+
 // https://www.uicolor.io/
 @implementation AppDelegate
 - (BOOL)application:(UIApplication*)application didFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
@@ -218,6 +247,28 @@ static NSString* certPassword = nil;
 		[[Utils getPrefs] setValue:[Utils gdBundleName] forKey:@"selected"];
 		[[Utils getPrefs] setValue:@"GeometryDash" forKey:@"selectedContainer"];
 		[[Utils getPrefs] setBool:NO forKey:@"safemode"];
+		NSURLComponents* components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
+		NSMutableDictionary<NSString*, NSString*>* queryItems = [[NSMutableDictionary alloc] init];
+		for (NSURLQueryItem* item in components.queryItems) {
+			if (item.value) {
+				queryItems[item.name.lowercaseString] = item.value;
+			}
+		}
+
+		NSString* encodedArgs = queryItems[@"args"];
+		if (encodedArgs.length) {
+			NSString* decodedArgs = gc_decodeURLSafeBase64String(encodedArgs);
+			if (decodedArgs.length) {
+				[[Utils getPrefs] setValue:decodedArgs forKey:@"LAUNCH_ARGS"];
+			} else {
+				AppLog(@"Couldn't decode launch args from helper URL.");
+			}
+		}
+
+		if (queryItems[@"cahighfps"] != nil) {
+			[[Utils getPrefs] setBool:gc_queryItemIsTruthy(queryItems[@"cahighfps"]) forKey:@"USE_MAX_FPS"];
+		}
+
 		if ([url.host isEqualToString:@"relaunch"] && ![Utils isSandboxed]) {
 			pid_t pid;
 			int status;
